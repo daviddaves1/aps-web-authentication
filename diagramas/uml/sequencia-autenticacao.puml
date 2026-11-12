@@ -1,0 +1,144 @@
+@startuml sequencia-autenticacao
+skinparam backgroundColor #FFFFFF
+skinparam dpi 300
+skinparam defaultFontName "Segoe UI", Arial, sans-serif
+skinparam defaultFontSize 12
+skinparam roundCorner 6
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+skinparam maxMessageSize 170
+skinparam BoxPadding 4
+skinparam ParticipantPadding 0
+skinparam Padding 2
+hide footbox
+
+skinparam sequence {
+    ArrowColor #1E293B
+    ArrowThickness 1.5
+    LifeLineBorderColor #475569
+    LifeLineBackgroundColor #F8FAFC
+    ParticipantFontSize 12
+    ParticipantFontColor #0F172A
+    ActorFontSize 12
+    ActorFontColor #0F172A
+    DatabaseFontSize 12
+    DatabaseFontColor #0F172A
+    GroupBorderColor #0284C7
+    GroupBorderThickness 1.8
+    GroupBackgroundColor #E0F2FE
+    GroupHeaderFontSize 12
+    GroupHeaderFontColor #0F172A
+    GroupFontSize 12
+}
+
+skinparam note {
+    BackgroundColor #F1F5F9
+    BorderColor #64748B
+    FontColor #0F172A
+    FontSize 12
+}
+
+autonumber "<b>[00]"
+
+title <size:15><b>Diagrama de Sequência UML — Autenticação Web (CA01 a CA05)</b></size>
+
+actor "Aplicação\nCliente" as Cliente #F8FAFC
+participant "Reverse\nProxy" as Proxy #E0F2FE
+
+box "Contêiner: Aplicação de Autenticação (Hexagonal)" #F8FAFC
+    participant "AuthHttp\nController" as Controller #BAE6FD
+    participant "Authentication\nService\n<<UseCasePort>>" as Service #FEF08A
+    participant "DatabaseUser\nRepoAdapter\n<<RepoPort>>" as Repo #BAE6FD
+    participant "Argon2Password\nVerifierAdapter\n<<VerifierPort>>" as Verifier #BAE6FD
+end box
+
+database "Base de\nUsuários" as DB #F8FAFC
+
+note over Cliente, Controller : <b>1. Validar requisição (RF01, RF02, RF07)</b>
+
+Cliente -> Proxy : POST /auth/verify\n{identifier, password}
+activate Proxy
+
+Proxy -> Controller : Encaminhar JSON (RF01)
+activate Controller
+
+Controller -> Controller : Validar campos\nobrigatórios (RF02)
+
+alt [Entrada inválida — CA04 (HTTP 400 — encerrar o fluxo)]
+    Controller --> Proxy : HTTP 400 Bad Request (RF07)
+    Proxy --> Cliente : Erro de validação (HTTP 400)
+
+else [Entrada válida — prosseguir para consulta]
+
+    note over Controller, DB : <b>2. Consultar repositório (RF03, RF08)</b>
+
+    Controller -> Service : verifyCredentials(id, pwd)
+    activate Service
+
+    Service -> Repo : findByIdentifier(id) (RF03)
+    activate Repo
+
+    Repo -> DB : SELECT id, identifier,\npassword_hash
+    activate DB
+
+    alt [Falha de infraestrutura — CA05 (HTTP 503 — encerrar o fluxo)]
+        DB --> Repo : Falha de conexão / timeout
+        deactivate DB
+        Repo --> Service : Erro de infraestrutura
+        deactivate Repo
+        Service --> Controller : Propagar erro técnico
+        deactivate Service
+        Controller --> Proxy : HTTP 503 Service Unavailable (RF08)
+        Proxy --> Cliente : Serviço indisponível (HTTP 503)
+
+    else [Consulta concluída — prosseguir para verificação]
+
+        note over Service, Verifier : <b>3. Verificar credenciais (RF04, RF05, RF06)</b>
+
+        alt [Usuário inexistente — CA02: hash fictício -> HTTP 401]
+            DB --> Repo : Registro inexistente
+            deactivate DB
+            Repo --> Service : Vazio (empty)
+            deactivate Repo
+
+            Service -> Verifier : verify(pwd, DUMMY_HASH) (RF04)
+            activate Verifier
+            Verifier -> Verifier : Argon2id verify com hash\nfictício pré-configurado
+            Verifier --> Service : false (ignorado)
+            deactivate Verifier
+
+            Service --> Controller : Credenciais inválidas (RF06)
+            Controller --> Proxy : HTTP 401 Unauthorized (RF06)
+            Proxy --> Cliente : Credenciais inválidas (HTTP 401)
+
+        else [Usuário existente — verificar senha real (CA01 ou CA03)]
+            DB --> Repo : Registro localizado
+            deactivate DB
+            Repo --> Service : UserRecord(id, hash)
+            deactivate Repo
+
+            Service -> Verifier : verify(pwd, hash) (RF04)
+            activate Verifier
+            Verifier -> Verifier : Argon2id verify com salt\ne parâmetros do hash
+            Verifier --> Service : Resultado booleano (true / false)
+            deactivate Verifier
+
+            alt [Senha correta — CA01: HTTP 200]
+                Service --> Controller : Autenticado (id, identifier) (RF05)
+                Controller --> Proxy : HTTP 200 OK (RF05)
+                Proxy --> Cliente : Identidade do usuário (HTTP 200)
+
+            else [Senha incorreta — CA03: HTTP 401]
+                Service --> Controller : Credenciais inválidas (RF06)
+                deactivate Service
+                Controller --> Proxy : HTTP 401 Unauthorized (RF06)
+                deactivate Controller
+                Proxy --> Cliente : Credenciais inválidas (HTTP 401)
+                deactivate Proxy
+            end
+        end
+    end
+end
+
+@enduml
