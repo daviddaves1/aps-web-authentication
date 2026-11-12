@@ -2,7 +2,7 @@
 
 * ### **Autor: David Daves Ferreira Pinto**
 
-* ### **Revisora: Adriana Silveira de Souza**
+* ### **Revisão assistida por IA: ChatGPT (OpenAI)**
 
 * ### **Referências deste Item: \[ISO/IEC/IEEE 12207, 2026\]; \[SWEBOK V4.0, 2024\]; \[FIELDING; TAYLOR, 2002\]; \[BASS et al., 2021\].**
 

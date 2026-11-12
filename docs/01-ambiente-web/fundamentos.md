@@ -34,7 +34,7 @@ O fluxo operacional dessa arquitetura é regido por um ciclo contínuo de Requis
 3. **Processamento:** O servidor executa as operações necessárias, podendo consultar outros componentes ou um banco de dados.
 4. **Resposta:** O resultado é encaminhado ao cliente, que interpreta as informações recebidas.
 
-Essa organização permite distribuir as responsabilidades e manter uma separação nítida entre a interface utilizada pelo usuário e o processamento que é realizado no servidor (MDN WEB DOCS, s.d.).
+Essa organização permite distribuir as responsabilidades e manter uma separação nítida entre a interface utilizada pelo usuário e o processamento que é realizado no servidor (MDN WEB DOCS, s.d.-a).
 
 ### 2.1. Aplicação do Modelo na Autenticação de Usuários
 
@@ -42,9 +42,9 @@ No cenário de controle de acessos, a arquitetura cliente-servidor atua como o m
 
 1. **Entrada de Dados:** O usuário insere suas credenciais de acesso (identificador único e credencial secreta) em um contêiner de formulário na interface gráfica. O navegador encapsula esses dados textuais e inicia a transmissão dos mesmos ao acionar o evento de envio.
 2. **Encaminhamento Seguro:** Os dados encapsulados trafegam pela rede utilizando métodos de requisição cifrados (como o método POST via HTTPS), direcionando os parâmetros de identidade diretamente para os pontos de escuta do servidor web.
-3. **Validação e Processamento:** O servidor de aplicação assume o controle do fluxo. Ele executa a sanitização dos dados recebidos e aciona a camada de persistência para recuperar o registro histórico do usuário. De posse do *hash* e dos parâmetros de segurança armazenados no banco, o servidor executa localmente a validação da credencial recebida por meio de um algoritmo criptográfico apropriado (como o Argon2id).
+3. **Validação e Processamento:** O servidor de aplicação assume o controle do fluxo. Ele valida a estrutura e os campos obrigatórios da requisição e aciona a camada de persistência para recuperar o registro correspondente ao identificador informado. De posse do *hash* e dos parâmetros de segurança armazenados no banco, o servidor executa localmente a validação da credencial recebida por meio de um algoritmo criptográfico apropriado (como o Argon2id).
 4. **Emissão da Resposta (Tratamento de Fluxo)**
-   * **Autenticação Positiva:** Caso haja correspondência exata, o servidor gera o retorno da identificação do usuário contendo metadados, autorizando o acesso e alterando o estado da interface no cliente.
+   * **Autenticação Positiva:** Caso as credenciais sejam válidas, o servidor retorna a identificação pública do usuário, permitindo que a aplicação cliente interprete o resultado e atualize sua interface conforme necessário.
    * **Autenticação Negativa:** Diante de qualquer divergência ou ausência de registro, o servidor interrompe o fluxo e retorna um código de status de erro padronizado, impedindo o avanço do usuário sem expor detalhes estruturais da falha.
 
 Dessa forma, o navegador permanece restrito à interação com o usuário, atuando como um ambiente de renderização visual e captura de eventos. As rotinas lógicas de validação, chaves criptográficas e políticas de segurança permanecem isoladas no ambiente controlado do servidor, resguardado o ecossistema contra engenharia reversa e manipulações locais na interface do usuário.
@@ -79,7 +79,7 @@ Uma aplicação Web pode ser estruturada em camadas lógicas distintas. Essa sep
 
 ### 3.2. Camada de Aplicação
 * **Responsabilidade:** Concentra o processamento das requisições e a execução das regras de negócio e requisitos do sistema.
-  **Exemplo:** Após receber os dados coletados na interface, esta camada verifica se o e-mail inserido possui um formato válido, extrai o *hash* armazenado da senha para comparação segura e aplica regras de bloqueio temporário caso o usuário já tenha errado a senha várias vezes seguidas.
+  **Exemplo:** Após receber as credenciais, esta camada valida os campos obrigatórios, consulta o registro correspondente ao identificador informado e verifica a senha utilizando o algoritmo Argon2id, retornando o resultado da autenticação.
 ---
 * **Componentes:**
   * **Servidor Web:** Trata o recebimento de conexões HTTP/HTTPS, roteamento e entrega de assets estáticos. Isso inclui o tráfego seguro dos dados que estarão vulneráveis durante o repasse de informações, sendo imprescindível a aplicação da inviolabilidade mediante os ataques cibernéticos.
@@ -99,7 +99,37 @@ Uma aplicação Web pode ser estruturada em camadas lógicas distintas. Essa sep
 
 ---
 
-## 4. Considerações sobre o Ambiente Operacional
+## 4. Protocolos e Comunicação no Ambiente Web
+
+Para que os componentes das camadas de apresentação e de aplicação troquem informações pela rede, o ambiente operacional Web apoia-se em uma pilha de protocolos padronizados. Cada protocolo cumpre uma etapa técnica específica desde a localização do servidor até a formatação e entrega das mensagens de autenticação (MDN WEB DOCS, s.d.-a; MDN WEB DOCS, s.d.-b).
+
+1. **DNS e Endereçamento IP:** Os dispositivos conectados à rede identificam-se por endereços numéricos denominados endereços IP (Internet Protocol). Quando a aplicação cliente precisa comunicar-se com o domínio do serviço, o navegador aciona o sistema DNS (Domain Name System), em conjunto com o sistema operacional, para converter o nome do domínio no endereço IP correspondente ao servidor Web de destino.
+2. **TCP e TLS (Estabelecimento e Proteção da Conexão):** Localizado o endereço IP, o cliente estabelece um canal de transporte confiável com o servidor utilizando o protocolo **TCP** (Transmission Control Protocol), que oferece transporte confiável e ordenado dos dados, utilizando mecanismos de confirmação e retransmissão para lidar com perdas durante a comunicação. Sobre essa conexão, executa-se o aperto de mão (*handshake*) do protocolo **TLS** (Transport Layer Security), no qual o servidor apresenta seu certificado digital e ambos negociam chaves criptográficas para cifrar todo o tráfego subsequente.
+3. **HTTP e HTTPS (Troca de Requisições e Respostas):** Estabelecido o túnel seguro, a comunicação passa a ocorrer na camada de aplicação por meio do protocolo **HTTPS** (HTTP sobre TLS). Sob esse modelo sem estado (*stateless*), o cliente submete uma requisição independente contendo os dados da operação e aguarda a resposta síncrona emitida pelo servidor (MDN WEB DOCS, s.d.-b).
+4. **Estrutura das Mensagens HTTP:** As mensagens trocadas entre a aplicação cliente e o servidor seguem um formato estruturado composto por linha inicial, cabeçalhos (*headers*) e corpo (*body*). No escopo do Serviço de Autenticação Web, a invocação ocorre por meio do método `POST` direcionado ao caminho `/auth/verify`, trafegando objetos em notação JSON:
+
+```text
+┌─────────────────── REQUISIÇÃO HTTP (Cliente ──► Servidor) ───────────────────┐
+│ POST /auth/verify HTTP/1.1                                                   │
+│ Host: auth.exemplo.com                                                       │
+│ Content-Type: application/json                                               │
+│                                                                              │
+│ { "identifier": "usuario@dominio.com", "password": "SenhaInformada" }        │
+└──────────────────────────────────────────────────────────────────────────────┘
+                                       │
+                         Processamento da Autenticação
+                                       ▼
+┌──────────────────── RESPOSTA HTTP (Servidor ──► Cliente) ────────────────────┐
+│ HTTP/1.1 200 OK                                                              │
+│ Content-Type: application/json                                               │
+│                                                                              │
+│ { "status": "AUTHENTICATED", "user": { "id": "...", "identifier": "..." } }  │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 5. Considerações sobre o Ambiente Operacional
 
 A estabilidade e a resiliência de uma aplicação Web estão diretamente vinculadas à interoperabilidade e cooperação contínua entre seus componentes, estendendo-se desde o navegador do cliente até os nós especializados de processamento e persistência de dados.
 

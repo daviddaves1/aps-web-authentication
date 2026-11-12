@@ -11,17 +11,17 @@ A documentação da MDN Web Docs descreve o navegador como o software responsáv
 
 O navegador possui 4 tipos de responsabilidades específicas que garantem que tudo funcione bem entre quem usa a tela e os sistemas que guardam os sites:
 
-**Comunicação e rede:** Ele cuida de pedir e receber arquivos dos servidores, traduzindo endereços de sites para que a entrega dos dados aconteça no lugar certo.
+**Comunicação e rede:** Ele participa do processo de resolução de nomes (em conjunto com serviços do sistema operacional e servidores DNS) e estabelece conexões com os servidores para solicitar e receber os arquivos nos endereços corretos.
 
-**Leitura e desenho da página:** Ele pega os códigos brutos do site, como textos, imagens e estilos, e transforma tudo isso na página organizada e visual que vemos na tela.
+**Leitura e desenho da página:** O navegador interpreta os recursos recebidos do site, como textos, imagens e estilos, e transforma tudo isso na página organizada e visual que vemos na tela.
 
 **Memória e armazenamento:** Ele guarda pequenas informações no seu aparelho, como histórico, senhas e arquivos temporários, para que os sites carreguem mais rápido na próxima visita.
 
-**Segurança e proteção:** Ele verifica se um site é confiável, bloqueia arquivos suspeitos e mantém cada aba separada para que um problema em uma página não trave o resto.
+**Segurança e proteção:** Ele valida certificados TLS para autenticar a conexão segura com o servidor (embora isso não garanta, por si só, que o conteúdo do site seja legítimo), bloqueia arquivos suspeitos e mantém cada aba isolada para que um problema em uma página não comprometa o restante do sistema.
 
 ### 1.2. Funcionamento e processamento
 
-Quando você digita um endereço e pressiona enter, o navegador segue um passo a passo rápido para montar a página na sua frente:
+Quando você digita um endereço e pressiona enter, o navegador segue um passo a passo rápido para renderizar a página no dispositivo do usuário:
 
 **Busca do endereço:** Primeiro, o navegador procura onde o site está hospedado na rede e abre um canal seguro de conversa com aquele servidor.
 
@@ -35,7 +35,7 @@ Quando você digita um endereço e pressiona enter, o navegador segue um passo a
 
 ### 1.3. Papel do Navegador na Autenticação
 
-Quando é preciso entrar em uma conta na internet, O navegador atua como intermediário na comunicação entre o usuário e o servidor responsável pela autenticação. Todo esse processo acontece em cinco passos simples e rápidos:
+Quando é preciso entrar em uma conta na internet, o navegador atua como intermediário na comunicação entre o usuário e o servidor responsável pela autenticação. Todo esse processo acontece em cinco passos simples e rápidos:
 
 **Exibição do formulário:** Primeiro, o navegador interpreta o código da página e exibe na tela os campos destinados às suas credenciais, acompanhados do botão de confirmação.
 
@@ -61,7 +61,7 @@ O servidor web desempenha 4 atribuições fundamentais para assegurar a disponib
 
 **Gerenciamento de conexões simultâneas:** Ele administra o tráfego de múltiplos usuários ao mesmo tempo, distribuindo os recursos de processamento e memória para evitar lentidão ou interrupções no serviço.
 
-**Controle de acesso e segurança:** Ele verifica certificados digitais, aplica regras de criptografia e valida permissões para impedir o acesso não autorizado a diretórios restritos ou dados sensíveis.
+**Controle de acesso e segurança:** Ele configura e utiliza certificados digitais TLS (apresentando seu certificado ao cliente durante o estabelecimento da conexão HTTPS e realizando a terminação criptográfica), além de aplicar regras de controle para impedir o acesso não autorizado a diretórios restritos.
 
 **Registro e auditoria de atividades:** Ele mantém históricos detalhados sobre cada acesso realizado, registrando endereços de origem, horários e eventuais falhas para fins de monitoramento e manutenção técnica.
 
@@ -71,11 +71,11 @@ Quando um pedido chega pela rede, o servidor web executa uma sequência estrutur
 
 **Escuta e validação da conexão:** O software do servidor identifica a chegada de um pedido através da rede, verifica a integridade do protocolo utilizado e estabelece o canal seguro de comunicação.
 
-**Análise do pedido recebido:** Ele examina o cabeçalho da requisição para identificar qual recurso está sendo solicitado, qual método está sendo empregado e se o solicitante possui as credenciais exigidas.
+**Análise do pedido recebido:** Ele examina o cabeçalho da requisição para identificar qual recurso está sendo solicitado e qual método HTTP está sendo empregado pelo cliente.
 
-**Triagem entre conteúdo estático e dinâmico:** Caso o pedido se refira a um arquivo pronto, como uma imagem ou documento fixo, o próprio servidor localiza o item em seu armazenamento. Se a solicitação exigir processamento de dados, como uma consulta ao banco de dados ou uma validação de acesso, ele encaminha o pedido para a aplicação responsável pelo processamento lógico.
+**Triagem entre conteúdo estático e dinâmico:** Caso o pedido se refira a um arquivo pronto, como uma imagem ou documento fixo, o próprio servidor localiza o item em seu armazenamento. Se a solicitação exigir processamento de dados, como uma consulta ao banco de dados ou uma validação de acesso, ele atua como *Reverse Proxy* e encaminha o pedido para a aplicação responsável pelo processamento lógico.
 
-**Consolidação e envio da resposta:** Após reunir os arquivos ou receber o resultado do processamento interno, o servidor organiza o pacote de dados, atribui um código de status informando o desfecho da operação e transmite a resposta de volta ao navegador.
+**Consolidação e envio da resposta:** A atribuição do código de status HTTP pode pertencer ao servidor Web (para recursos estáticos ou erros de gateway) ou à própria aplicação. No Serviço de Autenticação Web proposto, o adaptador HTTP da aplicação (`AuthHttpController`) determina os códigos de status (`200`, `400`, `401`, `500` e `503`) conforme o resultado da autenticação, cabendo ao servidor Web (*Reverse Proxy*) encaminhar a resposta estruturada de volta ao navegador.
 
 
 ## 3. Servidor de Aplicação
@@ -86,27 +86,27 @@ Essa separação de responsabilidades pode ser compreendida a partir dos princí
 
 ### 3.1. Responsabilidades
 
-O servidor de aplicação desempenha 4 funções essenciais para o funcionamento inteligente das plataformas digitais:
+O servidor de aplicação desempenha 4 funções essenciais para o processamento das funcionalidades das aplicações:
 
 **Execução das regras de negócio:** Ele processa os códigos da aplicação, realiza cálculos, aplica validações e determina o comportamento do sistema diante de cada solicitação recebida.
 
 **Integração com bancos de dados:** Ele estabelece a comunicação com os sistemas de armazenamento para consultar, inserir, atualizar ou excluir registros conforme a necessidade da operação.
 
-**Gerenciamento de sessões e estados:** Ele controla o contexto de cada usuário ativo, assegurando que as informações de navegação permaneçam organizadas e isoladas entre diferentes acessos simultâneos.
+**Gerenciamento de estados:** Dependendo da arquitetura adotada, servidores de aplicação podem manter informações de sessão e contexto dos usuários. Entretanto, o Serviço de Autenticação Web proposto opera de forma estritamente *stateless* (sem estado de sessão entre requisições), conforme estabelecido na decisão arquitetural ADR03.
 
 **Comunicação entre serviços:** Ele atua como ponto de integração com sistemas externos, como plataformas de pagamento, serviços de envio de mensagens ou interfaces de consulta de dados.
 
 ### 3.2. Processamento da autenticação
 
-Quando o servidor web encaminha um pedido de acesso restrito, o servidor de aplicação conduz a análise de mérito para validar a identidade do solicitante em etapas rigorosas:
+Quando o servidor web encaminha um pedido de autenticação, o servidor de aplicação conduz a verificação das credenciais para verificar as credenciais do solicitante em etapas rigorosas:
 
-**Recepção e extração das credenciais:** O servidor recebe os dados encaminhados pela camada web e extrai o identificador e a senha fornecidos no pedido.
+**Recepção e extração das credenciais:** O servidor recebe os dados encaminhados pela camada web, valida a presença e o formato dos campos obrigatórios e extrai o identificador e a senha fornecidos no pedido.
 
-**Consulta e verificação criptográfica:** Ele localiza o registro correspondente no banco de dados e compara a senha informada com o código criptografado armazenado no sistema, evitando o manuseio de senhas em texto simples.
+**Consulta e verificação criptográfica:** O servidor de aplicação consulta o registro do usuário e utiliza o algoritmo Argon2id para verificar a correspondência entre a senha informada e o hash armazenado, sem persistir ou registrar a senha original (executando verificação contra um hash fictício pré-configurado caso o identificador não seja localizado, conforme a decisão ADR01).
 
-**Avaliação de pressupostos de segurança:** Além da senha, o sistema verifica se a conta encontra-se ativa, se não há bloqueios por tentativas excessivas e se o perfil possui permissão para o ambiente solicitado.
+**Decisão de autenticação:** O escopo do serviço restringe-se exclusivamente à verificação das credenciais (CON01), sem avaliar status cadastral da conta, bloqueios por tentativas ou permissões de acesso. O serviço consolida a decisão considerando unicamente a existência do registro correspondente ao identificador informado e a validade criptográfica da senha verificada.
 
-**Emissão de credencial ou parecer de recusa:** Confirmada a regularidade dos dados, o servidor gera um identificador de sessão ou chave digital de acesso e devolve o parecer favorável ao servidor web. Caso constate qualquer divergência ou impedimento, ele rejeita o pedido e retorna o código correspondente à falha identificada.
+**Retorno do resultado da autenticação:** Caso as credenciais sejam válidas, o servidor de aplicação retorna a identificação pública do usuário (`id` e `identifier`). Caso sejam inválidas, retorna uma decisão de rejeição, que será convertida em uma resposta HTTP genérica (`HTTP 401`), sem revelar se o identificador existe na base de dados e sem emitir identificadores de sessão ou tokens de acesso persistentes (CON01).
 
 ## 4. Banco de Dados
 
@@ -122,32 +122,32 @@ O registro de identidades no banco de dados obedece a critérios técnicos de or
 
 **Proteção criptográfica de senhas:** Em um sistema de autenticação seguro, as senhas não devem ser armazenadas em texto puro. Antes do armazenamento, elas são processadas por algoritmos de hash específicos para senhas, como o Argon2id, utilizando um salt individual para cada credencial.
 
-**Controle de status e permissões:** Dependendo dos requisitos da aplicação, os registros de usuários também podem conter atributos adicionais que informam o estado da conta, como ativa ou suspensa, e delimitam suas permissões de acesso.
+**Controle de status e permissões:** Dependendo dos requisitos de cada sistema externo, os registros de usuários em bancos de dados corporativos podem conter atributos adicionais, embora o Serviço de Autenticação Web proposto limite-se estritamente à leitura dos atributos necessários à verificação de credenciais (CON01).
 
 **Garantia de integridade e auditoria:** O banco de dados pode aplicar restrições de integridade, como campos obrigatórios, chaves primárias e restrições de unicidade, para assegurar a conformidade dos cadastros. Adicionalmente, o registro de alterações para fins de auditoria pode ser implementado conforme as necessidades da aplicação.
 
 ### 4.2. Consultas e recuperação de credenciais
 
-Quando o servidor de aplicação necessita validar um pedido de acesso, o banco de dados executa uma rotina de localização e entrega das informações solicitadas:
+No Serviço de Autenticação Web proposto, a base de usuários é um repositório externo preexistente e acessado exclusivamente para leitura, sem operações de cadastro ou modificação por parte do serviço, conforme estabelecido na premissa arquitetural PRE01. Quando o servidor de aplicação necessita validar um pedido de acesso, o banco de dados executa uma rotina de localização e entrega das informações solicitadas:
 
-**Recepção da instrução de consulta:** O banco de dados recebe um comando estruturado proveniente da camada de aplicação, contendo o identificador informado na tentativa de acesso como parâmetro de busca.
+**Recepção da instrução de consulta:** O banco de dados recebe um comando estruturado de leitura proveniente da camada de aplicação, contendo o identificador informado na tentativa de acesso como parâmetro de busca.
 
 **Localização indexada do registro:** O banco de dados procura o registro correspondente ao identificador informado. Quando existem índices adequados, eles podem tornar a localização mais eficiente, reduzindo a necessidade de examinar todos os registros armazenados.
 
-**Extração seletiva dos atributos:** Em vez de transferir todo o cadastro, a consulta recupera somente os atributos necessários à autenticação, como o identificador do usuário, o hash da senha armazenada e os parâmetros necessários para sua verificação.
+**Extração seletiva dos atributos:** Em vez de transferir todo o cadastro, a consulta recupera somente os atributos necessários à autenticação, como o identificador único do usuário (`id`), o identificador de login (`identifier`) e o hash da senha armazenada (`password_hash`) com os parâmetros necessários para sua verificação.
 
 **Devolução segura ao solicitante:** O banco de dados retorna as informações solicitadas ao componente responsável pela persistência, que as disponibiliza ao servidor de aplicação para a conferência das credenciais. Essa comunicação deve ser protegida de acordo com a infraestrutura adotada.
 
 ## 5. Integração entre os Componentes
 
-O funcionamento completo da autenticação depende da comunicação coordenada entre todas as camadas da arquitetura, formando um fluxo contínuo de solicitação, processamento e resposta. Essa dinâmica segue o modelo de requisição e resposta empregado pelo HTTP (MDN WEB DOCS, s.d.-c):
+O funcionamento completo da autenticação depende da comunicação coordenada entre todas as camadas da arquitetura, formando um fluxo contínuo de solicitação, processamento e resposta. Essa dinâmica segue o modelo de requisição e resposta empregado pelo HTTP (MDN WEB DOCS, s.d.-b):
 
 **Envio da requisição pelo cliente:** O navegador reúne as credenciais inseridas no formulário e as transmite pela rede por meio de uma requisição HTTPS direcionada ao servidor Web.
 
-**Recepção e encaminhamento pela camada web:** O servidor Web recebe a requisição HTTPS, identifica o recurso solicitado e, conforme as regras de encaminhamento configuradas, direciona a solicitação ao servidor de aplicação.
+**Recepção e encaminhamento pela camada web:** O servidor Web recebe a requisição HTTPS, realiza a terminação TLS, identifica o recurso solicitado e, conforme as regras de encaminhamento configuradas (*Reverse Proxy*), direciona a solicitação ao servidor de aplicação.
 
-**Consulta e recuperação de dados:** O servidor de aplicação extrai o identificador informado e solicita ao banco de dados os registros correspondentes àquela conta, obtendo o hash da senha e os parâmetros necessários para a verificação.
+**Consulta e recuperação de dados:** O servidor de aplicação valida os campos recebidos, extrai o identificador informado e solicita ao banco de dados preexistente a leitura do registro correspondente àquela conta, obtendo o hash da senha e os parâmetros necessários para a verificação.
 
-**Validação e emissão de parecer:** De posse dos dados recuperados, o servidor de aplicação verifica a senha informada em relação ao hash armazenado e determina o resultado da autenticação. Caso as credenciais sejam válidas, retorna a identificação do usuário; caso contrário, retorna uma resposta de erro.
+**Validação e emissão de parecer:** De posse dos dados recuperados, o servidor de aplicação verifica a senha informada em relação ao hash armazenado utilizando o algoritmo Argon2id e determina o resultado da autenticação. Caso as credenciais sejam válidas, retorna a identificação pública do usuário; caso contrário, retorna uma resposta padronizada de erro.
 
-**Retorno e exibição ao usuário:** Por fim, o servidor Web encaminha a resposta HTTP ao navegador, que interpreta o resultado recebido e apresenta uma mensagem de sucesso ou falha na autenticação.
+**Retorno e exibição ao usuário:** Por fim, o servidor Web encaminha a resposta HTTP gerada pela aplicação ao navegador, que interpreta o resultado recebido e apresenta a confirmação de autenticação ou a mensagem de falha ao usuário.
