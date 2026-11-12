@@ -1,0 +1,46 @@
+@startuml conteineres
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Segoe UI", Arial, sans-serif
+skinparam defaultFontSize 12
+skinparam roundCorner 14
+skinparam shadowing false
+skinparam ArrowColor #334155
+skinparam ArrowFontColor #0F172A
+skinparam ArrowFontSize 12
+skinparam nodesep 95
+skinparam ranksep 85
+
+skinparam rectangle {
+    FontColor #0F172A
+}
+
+skinparam database {
+    FontColor #0F172A
+}
+
+title <b>Diagrama C4 — Nível 2: Contêineres do Serviço de Autenticação Web</b>
+
+rectangle "<b>Usuário</b>\n<color:#475569>[Pessoa / Ator Externo]</color>\n\nTitular das credenciais que\ninforma seus dados para acesso." as usuario #F8FAFC;line:475569;line.bold
+
+rectangle "<b>Aplicação Cliente</b>\n<color:#475569>[Sistema Externo Consumidor]</color>\n\nColeta as credenciais do usuário,\nsolicita a autenticação e conduz o fluxo\nconforme o resultado retornado." as app_cliente #F8FAFC;line:475569;line.bold
+
+package "Fronteira do Sistema: Serviço de Autenticação Web" as boundary #F0F9FF;line:0284C7;line.dashed {
+
+    rectangle "<b>Servidor Web / Reverse Proxy</b>\n<color:#0369A1>[Contêiner: Servidor HTTP]</color>\n\nRecebe conexões externas seguras (HTTPS),\nrealiza a terminação TLS e encaminha as\nrequisições à aplicação de autenticação." as web_server #E0F2FE;line:0284C7;line.bold
+
+    rectangle "<b>Aplicação de Autenticação</b>\n<color:#0369A1>[Contêiner: Servidor de Aplicação]</color>\n\nExpõe a interface HTTP e executa as regras\ndo serviço: valida a entrada, consulta o usuário,\nverifica a senha utilizando o hash armazenado\ne decide o resultado da autenticação." as app_auth #BAE6FD;line:0284C7;line.bold
+}
+
+database "<b>Base de Usuários</b>\n<color:#475569>[Sistema Externo Preexistente]</color>\n\nRepositório externo contendo os registros\nde usuários e hashes armazenados,\nconsultado sem gerência por este serviço." as base_usuarios #F8FAFC;line:475569;line.bold
+
+usuario -left-> app_cliente : "Informa credenciais"
+
+app_cliente -down-> web_server : "Solicita autenticação\n[HTTPS / JSON]"
+web_server -up-> app_cliente : "Retorna identificação do usuário\nou mensagem de erro\n[HTTPS / JSON]"
+
+web_server -down-> app_auth : "Encaminha requisição\n[HTTP / JSON]"
+app_auth -up-> web_server : "Retorna resultado da\nautenticação\n[HTTP / JSON]"
+
+app_auth -down-> base_usuarios : "Consulta registro e\nrecupera hash"
+
+@enduml
