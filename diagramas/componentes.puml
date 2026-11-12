@@ -1,0 +1,61 @@
+@startuml componentes
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Segoe UI", Arial, sans-serif
+skinparam defaultFontSize 12
+skinparam roundCorner 14
+skinparam shadowing false
+skinparam ArrowColor #334155
+skinparam ArrowFontColor #0F172A
+skinparam ArrowFontSize 11
+skinparam nodesep 60
+skinparam ranksep 65
+
+skinparam rectangle {
+    FontColor #0F172A
+}
+
+skinparam database {
+    FontColor #0F172A
+}
+
+title <b>Diagrama C4 — Nível 3: Componentes da Aplicação de Autenticação (Arquitetura Hexagonal)</b>
+
+rectangle "<b>Servidor Web / Reverse Proxy</b>\n<color:#475569>[Contêiner: Servidor HTTP]</color>\n\nEncaminha requisições HTTP oriundas\nda Aplicação Cliente e retorna respostas." as web_server #F8FAFC;line:475569;line.bold
+
+package "Contêiner: Aplicação de Autenticação" as app_boundary #F0F9FF;line:0284C7;line.dashed {
+
+    rectangle "<b>AuthHttpController</b>\n<color:#0369A1>[Componente: Adaptador Primário HTTP]</color>\n\nRecebe a requisição e valida formato e campos obrigatórios;\naciona AuthenticationUseCasePort; traduz sucesso, credenciais\ninválidas, falhas de validação e falhas técnicas para respostas\nHTTP (200, 401, 400, 503) (RF01, RF02, RF05, RF06, RF07, RF08)." as controller #E0F2FE;line:0284C7;line.bold
+
+    package "Núcleo de Aplicação — Portas e Caso de Uso" as core_boundary #FEFCE8;line:CA8A04;line.dashed {
+
+        rectangle "<b>AuthenticationUseCasePort</b>\n<color:#854D0E>[Componente: Porta de Entrada / Interface]</color>\n\nContrato de entrada para execução do\ncaso de uso de verificação de credenciais." as in_port #FEF9C3;line:CA8A04;line.bold
+
+        rectangle "<b>AuthenticationService</b>\n<color:#854D0E>[Componente: Serviço de Aplicação / Caso de Uso]</color>\n\nConsulta o usuário, verifica a senha por meio das portas de\nsaída e executa verificação com hash fictício equivalente\nquando o identificador não existe, retornando o resultado\nda autenticação (RF03, RF04, RF05, RF06)." as app_service #FEF08A;line:CA8A04;line.bold
+
+        rectangle "<b>UserRepositoryPort</b>\n<color:#854D0E>[Componente: Porta de Saída / Interface]</color>\n\nContrato de abstração de acesso aos dados para consulta\nde existência de usuário e leitura de hash." as repo_port #FEF9C3;line:CA8A04;line.bold
+
+        rectangle "<b>PasswordVerifierPort</b>\n<color:#854D0E>[Componente: Porta de Saída / Interface]</color>\n\nContrato de abstração para verificação criptográfica\nde senhas utilizando o hash armazenado." as verifier_port #FEF9C3;line:CA8A04;line.bold
+    }
+
+    rectangle "<b>DatabaseUserRepositoryAdapter</b>\n<color:#0369A1>[Componente: Adaptador Secundário de Dados]</color>\n\nImplementa UserRepositoryPort, consulta registros de\nusuários no repositório externo e converte falhas de\npersistência em erros de infraestrutura reconhecidos\npela aplicação (RF03, RF08)." as repo_adapter #E0F2FE;line:0284C7;line.bold
+
+    rectangle "<b>Argon2PasswordVerifierAdapter</b>\n<color:#0369A1>[Componente: Adaptador Secundário Criptográfico]</color>\n\nImplementa PasswordVerifierPort e realiza a verificação\nsegura de senhas utilizando Argon2id e os parâmetros\nregistrados no hash armazenado (RF04, RNF01/ASR01)." as verifier_adapter #E0F2FE;line:0284C7;line.bold
+}
+
+database "<b>Base de Usuários</b>\n<color:#475569>[Sistema Externo Preexistente]</color>\n\nRepositório externo contendo os registros\nde usuários e hashes armazenados." as base_usuarios #F8FAFC;line:475569;line.bold
+
+web_server -down-> controller : "Encaminha requisição e\nrecebe resposta [HTTP / JSON]"
+
+controller -down-> in_port : "Aciona caso de uso\nde autenticação"
+
+app_service -up-|> in_port : "Implementa"
+
+app_service -down-> repo_port : "Solicita consulta de usuário\npor identificador"
+app_service -down-> verifier_port : "Solicita verificação de senha\ncom o hash armazenado"
+
+repo_adapter -up-|> repo_port : "Implementa\n(Inversão de Dependência)"
+verifier_adapter -up-|> verifier_port : "Implementa\n(Inversão de Dependência)"
+
+repo_adapter -down-> base_usuarios : "Consulta registro e recupera hash\n[Somente Leitura / TCP]"
+
+@enduml
